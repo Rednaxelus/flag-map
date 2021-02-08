@@ -2,7 +2,7 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
 from PIL import Image, ImageDraw
-from geopy.geocoders import Nominatim
+import reverse_geocoder as rg
 
 
 def autocrop_image(image, border=0):
@@ -29,38 +29,25 @@ def autocrop_image(image, border=0):
     return cropped_image
 
 
-def give_country(Latitude="25.594095", Longitude="85.137566"):
-    # initialize Nominatim API
-    geolocator = Nominatim(user_agent="emoji-map")
+def give_country(latitude="25.594095", longitude="85.137566"):
+    coordinates = (latitude, longitude)
 
-    location = geolocator.reverse(Latitude + "," + Longitude)
+    location = rg.search(coordinates)  # default mode = 2
 
-    if location != None:
-        address = location.raw['address']
+    if location is not None:
+        address = location[0]
 
-        # traverse the data
-        city = address.get('city', '')
-        state = address.get('state', '')
-        country = address.get('country', '')
-        code = address.get('country_code')
-        zipcode = address.get('postcode')
-        # print('City : ', city)
-        # print('State : ', state)
-        print('Country : ', country)
-        # print('Zip Code : ', zipcode)
+        code = address.get('cc')
+        print('Country : ', code)
+        print('name : ', address.get('name'))
 
         subchars = []
         for c in code:
             res = ord(c.capitalize()) - ord('A') + 127462
             subchars.append(hex(res).upper()[2:])
-
         res3 = subchars[0] + '-' + subchars[1] + '.png'
-
         return res3
-
     return None
-
-    # print(ord(flag.flag("IL")[0]))
 
 
 if __name__ == '__main__':
@@ -74,7 +61,7 @@ if __name__ == '__main__':
 
     im1 = im1.resize((flag_width, flag_height), resample=Image.NEAREST)
 
-    latitude_start = 53.0
+    latitude_start = 51.0
     longitude_start = 3.0
     step = 1
 
