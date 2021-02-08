@@ -29,13 +29,12 @@ def autocrop_image(image, border=0):
     return cropped_image
 
 
-def give_country(latitude="25.594095", longitude="85.137566"):
-    coordinates = (latitude, longitude)
+def give_country(coordinates):
 
     location = rg.search(coordinates)  # default mode = 2
+    res3 = []
 
-    if location is not None:
-        address = location[0]
+    for address in location:
 
         code = address.get('cc')
         print('Country : ', code)
@@ -45,9 +44,9 @@ def give_country(latitude="25.594095", longitude="85.137566"):
         for c in code:
             res = ord(c.capitalize()) - ord('A') + 127462
             subchars.append(hex(res).upper()[2:])
-        res3 = subchars[0] + '-' + subchars[1] + '.png'
-        return res3
-    return None
+        res3.append(subchars[0] + '-' + subchars[1] + '.png')
+
+    return res3
 
 
 if __name__ == '__main__':
@@ -61,11 +60,11 @@ if __name__ == '__main__':
 
     im1 = im1.resize((flag_width, flag_height), resample=Image.NEAREST)
 
-    latitude_start = 51.0
-    longitude_start = 3.0
+    latitude_start = 70.0
+    longitude_start = -30.0
     step = 1
 
-    latitude_div = 10
+    latitude_div = 80
     longitude_div = 2 * latitude_div
 
     draw_offset_x = 100
@@ -77,13 +76,29 @@ if __name__ == '__main__':
     im = Image.new("RGBA", (map_width, map_height), back_ground_color)
     draw = ImageDraw.Draw(im)
 
-    flag_dict = {}
+
+    pos_arr2 = []
+    pos_arr = []
 
     latitude_steps = 0
     while latitude_steps < latitude_div:
         longitude_steps = 0
         while longitude_steps < longitude_div:
-            country = give_country(str(latitude_start - latitude_steps), str(longitude_start + longitude_steps))
+            pos_arr.append((latitude_start - latitude_steps, longitude_start + longitude_steps))
+            longitude_steps += step
+        latitude_steps += step
+    pos_arr2 = give_country(pos_arr)
+
+
+    flag_dict = {}
+
+    array_pos = 0
+
+    latitude_steps = 0
+    while latitude_steps < latitude_div:
+        longitude_steps = 0
+        while longitude_steps < longitude_div:
+            country = pos_arr2[array_pos]
             if country is not None:
                 if country in flag_dict:
                     chosen_flag = flag_dict[country]
@@ -95,8 +110,10 @@ if __name__ == '__main__':
                 draw_x = int(draw_offset_x + longitude_steps * flag_width * 1 / step - flag_width / 2)
                 draw_y = int(draw_offset_y + latitude_steps * flag_height * 1 / step - flag_height / 2)
                 im.paste(chosen_flag, (draw_x, draw_y))
+            array_pos += 1
             longitude_steps += step
         latitude_steps += step
+
     # im.save('data/dst/rocket_pillow_paste_pos.jpg', quality=95)
 
     im.show()
