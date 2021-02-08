@@ -34,18 +34,24 @@ def give_country(coordinates):
     location = rg.search(coordinates)  # default mode = 2
     res3 = []
 
+    checker = []
+
     for address in location:
 
         code = address.get('cc')
+        name = address.get('name')
         print('Country : ', code)
-        print('name : ', address.get('name'))
+        print('name : ', name)
 
-        subchars = []
-        for c in code:
-            res = ord(c.capitalize()) - ord('A') + 127462
-            subchars.append(hex(res).upper()[2:])
-        res3.append(subchars[0] + '-' + subchars[1] + '.png')
-
+        if name not in checker:
+            checker.append(name)
+            subchars = []
+            for c in code:
+                res = ord(c.capitalize()) - ord('A') + 127462
+                subchars.append(hex(res).upper()[2:])
+            res3.append(subchars[0] + '-' + subchars[1] + '.png')
+        else:
+            res3.append(None)
     return res3
 
 
