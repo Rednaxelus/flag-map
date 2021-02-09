@@ -9,6 +9,26 @@ from shapely.geometry import shape
 from shapely.prepared import prep
 
 
+def prepare_country_data(json_file):
+    with open(json_file) as f:
+        data = json.load(f)
+
+    countries = {}
+    for feature in data["features"]:
+        geom = feature["geometry"]
+        country_code = feature["properties"]["ISO_A2"]
+        countries[country_code] = prep(shape(geom))
+    return countries
+
+
+def calc_flag_height(flag_width):
+    blueprint_flag = Image.open(f'openmoji-618x618-color/1F1E6-1F1E8.png')
+    blueprint_flag = autocrop_image(blueprint_flag)
+    scale_factor = flag_width / blueprint_flag.width
+    flag_height = int(blueprint_flag.height * scale_factor)
+    return flag_height
+
+
 def autocrop_image(image, border=0):
     # Get the bounding box
     bbox = image.getbbox()
@@ -33,14 +53,16 @@ def autocrop_image(image, border=0):
     return cropped_image
 
 
-def calc_flag_unicode(country_iso2):
-    if country_iso2 is None:
-        return None
-    subchars = []
-    for c in country_iso2:
-        res = ord(c.capitalize()) - ord('A') + 127462
-        subchars.append(hex(res).upper()[2:])
-    return subchars[0] + '-' + subchars[1] + '.png'
+def create_coordinate_list(latitude_start, latitude_div, longitude_start, longitude_div):
+    coordinates = []
+    latitude_steps = 0
+    while latitude_steps < latitude_div:
+        longitude_steps = 0
+        while longitude_steps < longitude_div:
+            coordinates.append((latitude_start - latitude_steps, longitude_start + longitude_steps))
+            longitude_steps += step_lon
+        latitude_steps += step_lat
+    return coordinates
 
 
 def create_coordinate_to_country_code_dict(coordinates):
@@ -56,33 +78,14 @@ def create_coordinate_to_country_code_dict(coordinates):
     return pos_country_dict
 
 
-def calc_flag_height(flag_width):
-    blueprint_flag = Image.open(f'openmoji-618x618-color/1F1E6-1F1E8.png')
-    blueprint_flag = autocrop_image(blueprint_flag)
-    scale_factor = flag_width / blueprint_flag.width
-    flag_height = int(blueprint_flag.height * scale_factor)
-    return flag_height
-
-
-def create_base_image():
-    map_width = int(flag_width * longitude_div / step_lon + draw_offset_x * 2)
-    map_height = int(flag_height * latitude_div / step_lat + draw_offset_y * 2)
-    background_color = (255, 255, 255)
-    im = Image.new("RGBA", (map_width, map_height), background_color)
-    ImageDraw.Draw(im)
-    return im
-
-
-def prepare_country_data(json_file):
-    with open(json_file) as f:
-        data = json.load(f)
-
-    countries = {}
-    for feature in data["features"]:
-        geom = feature["geometry"]
-        country_code = feature["properties"]["ISO_A2"]
-        countries[country_code] = prep(shape(geom))
-    return countries
+def calc_flag_unicode(country_iso2):
+    if country_iso2 is None:
+        return None
+    subchars = []
+    for c in country_iso2:
+        res = ord(c.capitalize()) - ord('A') + 127462
+        subchars.append(hex(res).upper()[2:])
+    return subchars[0] + '-' + subchars[1] + '.png'
 
 
 def load_flags_for_country_codes(country_code_list):
@@ -102,26 +105,6 @@ def load_flags_for_country_codes(country_code_list):
     return flag_dict
 
 
-def create_coordinate_list():
-    coordinates = []
-    latitude_steps = 0
-    while latitude_steps < latitude_div:
-        longitude_steps = 0
-        while longitude_steps < longitude_div:
-            coordinates.append((latitude_start - latitude_steps, longitude_start + longitude_steps))
-            longitude_steps += step_lon
-        latitude_steps += step_lat
-    return coordinates
-
-
-def draw_images_on_base(base, images, draw_offset_x, draw_offset_y):
-    for image in images:
-        draw_x = int(draw_offset_x + image["offset_x"])
-        draw_y = int(draw_offset_y + image["offset_y"])
-        base.paste(image["image"], (draw_x, draw_y))
-    return base
-
-
 def create_image_data_array():
     image_array = []
     for position in coord_list:
@@ -136,26 +119,38 @@ def create_image_data_array():
     return image_array
 
 
+def create_base_image(map_width, map_height, background_color):
+    im = Image.new("RGBA", (map_width, map_height), background_color)
+    ImageDraw.Draw(im)
+    return im
+
+
+def draw_images_on_base(base, images, draw_offset_x, draw_offset_y):
+    for image in images:
+        draw_x = int(draw_offset_x + image["offset_x"])
+        draw_y = int(draw_offset_y + image["offset_y"])
+        base.paste(image["image"], (draw_x, draw_y))
+    return base
+
+
 if __name__ == '__main__':
+    all_countries_data = prepare_country_data('countries.geojson')
+
     draw_offset_x = 100
     draw_offset_y = 100
 
     flag_width = 32
     flag_height = calc_flag_height(flag_width)
 
-    latitude_start = 90  # 73.0  # 90
-    longitude_start = -180  # -13.0  # -180
+    latitude_start = 73.0  # 90
+    longitude_start = -13.0  # -180
     step_lat = 1  # 0.5
     step_lon = (flag_width / flag_height) * step_lat
 
-    latitude_div = 180  # 40  # 180
-    longitude_div = 360  # 55  # 360
+    latitude_div = 40  # 180
+    longitude_div = 55  # 360
 
-    base_image = create_base_image()
-
-    all_countries_data = prepare_country_data('countries.geojson')
-
-    coord_list = create_coordinate_list()
+    coord_list = create_coordinate_list(latitude_start, latitude_div, longitude_start, longitude_div)
 
     pos_to_country_dict = create_coordinate_to_country_code_dict(coord_list)
 
@@ -165,8 +160,13 @@ if __name__ == '__main__':
 
     image_array = create_image_data_array()
 
+    map_width = int(flag_width * longitude_div / step_lon + draw_offset_x * 2)
+    map_height = int(flag_height * latitude_div / step_lat + draw_offset_y * 2)
+    background_color = (255, 255, 255)
+    base_image = create_base_image(map_width, map_height, background_color)
+
     created_map = draw_images_on_base(base_image, image_array, draw_offset_x, draw_offset_y)
 
-    # im.save('data/dst/rocket_pillow_paste_pos.jpg', quality=95)
+    # created_map.save('cool_map.png')
 
     created_map.show()
