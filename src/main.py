@@ -35,27 +35,6 @@ def autocrop_image(image, border=0):
     return cropped_image
 
 
-def give_country_OLD(coordinates):
-
-    location = rg.search(coordinates)  # default mode = 2
-    res3 = []
-
-    checker = []
-
-    for address in location:
-
-        code = address.get('cc')
-        name = address.get('name')
-        print('Country : ', code)
-        print('name : ', name)
-
-        if name not in checker:
-            checker.append(name)
-            res3.append(get_unicode(code))
-        else:
-            res3.append(None)
-    return res3
-
 def get_unicode(code):
     subchars = []
     for c in code:
@@ -63,10 +42,11 @@ def get_unicode(code):
         subchars.append(hex(res).upper()[2:])
     return (subchars[0] + '-' + subchars[1] + '.png')
 
+
 def get_country(coordinates):
     res3 = []
     for pon in coordinates:
-        point = Point(pon[1], pon[0])#lon, lat
+        point = Point(pon[1], pon[0])  # lon, lat
         found = False
         for country, geom in countries.items():
             if geom.contains(point):
@@ -80,36 +60,34 @@ def get_country(coordinates):
 
 if __name__ == '__main__':
 
-    im1 = Image.open(f'openmoji-618x618-color/1F1E6-1F1E8.png')
-    im1 = autocrop_image(im1)
+    blueprint_flag = Image.open(f'openmoji-618x618-color/1F1E6-1F1E8.png')
+    blueprint_flag = autocrop_image(blueprint_flag)
 
     flag_width = 32
-    scale_factor = flag_width / im1.width
-    flag_height = int(im1.height * scale_factor)
+    scale_factor = flag_width / blueprint_flag.width
+    flag_height = int(blueprint_flag.height * scale_factor)
 
-    im1 = im1.resize((flag_width, flag_height), resample=Image.NEAREST)
+    blueprint_flag = blueprint_flag.resize((flag_width, flag_height), resample=Image.NEAREST)
 
-    latitude_start = 70.0
-    longitude_start = -30.0
-    step = 1
+    latitude_start = 73.0  # 90
+    longitude_start = -13.0  # -180
+    step_lat = 0.5
+    step_lon = (flag_width / flag_height) * step_lat
 
-    latitude_div = 80
-    longitude_div = 2 * latitude_div
+    latitude_div = 40  # 180
+    longitude_div = 55  # 360
 
     draw_offset_x = 100
     draw_offset_y = 100
 
-    map_width = int(flag_width * longitude_div / step + draw_offset_x * 2)
-    map_height = int(flag_height * latitude_div / step + draw_offset_y * 2)
+    map_width = int(flag_width * longitude_div / step_lon + draw_offset_x * 2)
+    map_height = int(flag_height * latitude_div / step_lat + draw_offset_y * 2)
     back_ground_color = (255, 255, 255)
     im = Image.new("RGBA", (map_width, map_height), back_ground_color)
     draw = ImageDraw.Draw(im)
 
-
     pos_arr2 = []
     pos_arr = []
-
-
 
     with open('countries.geojson') as f:
         data = json.load(f)
@@ -120,16 +98,14 @@ if __name__ == '__main__':
         country = feature["properties"]["ISO_A2"]
         countries[country] = prep(shape(geom))
 
-
     latitude_steps = 0
     while latitude_steps < latitude_div:
         longitude_steps = 0
         while longitude_steps < longitude_div:
             pos_arr.append((latitude_start - latitude_steps, longitude_start + longitude_steps))
-            longitude_steps += step
-        latitude_steps += step
+            longitude_steps += step_lon
+        latitude_steps += step_lat
     pos_arr2 = get_country(pos_arr)
-
 
     flag_dict = {}
 
@@ -148,12 +124,12 @@ if __name__ == '__main__':
                     chosen_flag = autocrop_image(chosen_flag)
                     chosen_flag = chosen_flag.resize((flag_width, flag_height), resample=Image.NEAREST)
                     flag_dict[country] = chosen_flag
-                draw_x = int(draw_offset_x + longitude_steps * flag_width * 1 / step - flag_width / 2)
-                draw_y = int(draw_offset_y + latitude_steps * flag_height * 1 / step - flag_height / 2)
+                draw_x = int(draw_offset_x + longitude_steps * flag_width * 1 / step_lon - flag_width / 2)
+                draw_y = int(draw_offset_y + latitude_steps * flag_height * 1 / step_lat - flag_height / 2)
                 im.paste(chosen_flag, (draw_x, draw_y))
             array_pos += 1
-            longitude_steps += step
-        latitude_steps += step
+            longitude_steps += step_lon
+        latitude_steps += step_lat
 
     # im.save('data/dst/rocket_pillow_paste_pos.jpg', quality=95)
 
