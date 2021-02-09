@@ -4,6 +4,12 @@
 from PIL import Image, ImageDraw
 import reverse_geocoder as rg
 
+import json
+
+from shapely.geometry import mapping, shape
+from shapely.prepared import prep
+from shapely.geometry import Point
+
 
 def autocrop_image(image, border=0):
     # Get the bounding box
@@ -29,7 +35,7 @@ def autocrop_image(image, border=0):
     return cropped_image
 
 
-def give_country(coordinates):
+def give_country_OLD(coordinates):
 
     location = rg.search(coordinates)  # default mode = 2
     res3 = []
@@ -45,12 +51,29 @@ def give_country(coordinates):
 
         if name not in checker:
             checker.append(name)
-            subchars = []
-            for c in code:
-                res = ord(c.capitalize()) - ord('A') + 127462
-                subchars.append(hex(res).upper()[2:])
-            res3.append(subchars[0] + '-' + subchars[1] + '.png')
+            res3.append(get_unicode(code))
         else:
+            res3.append(None)
+    return res3
+
+def get_unicode(code):
+    subchars = []
+    for c in code:
+        res = ord(c.capitalize()) - ord('A') + 127462
+        subchars.append(hex(res).upper()[2:])
+    return (subchars[0] + '-' + subchars[1] + '.png')
+
+def get_country(coordinates):
+    res3 = []
+    for pon in coordinates:
+        point = Point(pon[1], pon[0])#lon, lat
+        found = False
+        for country, geom in countries.items():
+            if geom.contains(point):
+                res3.append(get_unicode(country))
+                found = True
+                break
+        if not found:
             res3.append(None)
     return res3
 
@@ -86,6 +109,18 @@ if __name__ == '__main__':
     pos_arr2 = []
     pos_arr = []
 
+
+
+    with open('countries.geojson') as f:
+        data = json.load(f)
+
+    countries = {}
+    for feature in data["features"]:
+        geom = feature["geometry"]
+        country = feature["properties"]["ISO_A2"]
+        countries[country] = prep(shape(geom))
+
+
     latitude_steps = 0
     while latitude_steps < latitude_div:
         longitude_steps = 0
@@ -93,7 +128,7 @@ if __name__ == '__main__':
             pos_arr.append((latitude_start - latitude_steps, longitude_start + longitude_steps))
             longitude_steps += step
         latitude_steps += step
-    pos_arr2 = give_country(pos_arr)
+    pos_arr2 = get_country(pos_arr)
 
 
     flag_dict = {}
