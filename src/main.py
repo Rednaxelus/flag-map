@@ -1,15 +1,12 @@
-# Press Umschalt+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
 import json
 
-from PIL import Image, ImageDraw
+from PIL import Image
 from shapely.geometry import Point
 from shapely.geometry import shape
 from shapely.prepared import prep
 
 
-def prepare_country_data(json_file):
+def __prepare_country_data(json_file):
     with open(json_file) as f:
         data = json.load(f)
 
@@ -21,15 +18,18 @@ def prepare_country_data(json_file):
     return countries
 
 
-def calc_flag_height(flag_width):
+def __calc_flag_height(flag_width):
     blueprint_flag = Image.open(f'openmoji-618x618-color/1F1E6-1F1E8.png')
-    blueprint_flag = autocrop_image(blueprint_flag)
+    blueprint_flag = __autocrop_image(blueprint_flag)
     scale_factor = flag_width / blueprint_flag.width
     flag_height = int(blueprint_flag.height * scale_factor)
     return flag_height
 
 
-def autocrop_image(image, border=0):
+def __autocrop_image(image, border=0):
+    """
+    @author odyniec https://gist.github.com/odyniec/3470977
+    """
     # Get the bounding box
     bbox = image.getbbox()
 
@@ -53,7 +53,7 @@ def autocrop_image(image, border=0):
     return cropped_image
 
 
-def create_coordinate_list(latitude_start, latitude_div, longitude_start, longitude_div):
+def __create_coordinate_list(latitude_start, latitude_div, step_lat, longitude_start, longitude_div, step_lon):
     coordinates = []
     latitude_steps = 0
     while latitude_steps < latitude_div:
@@ -65,9 +65,9 @@ def create_coordinate_list(latitude_start, latitude_div, longitude_start, longit
     return coordinates
 
 
-def create_coordinate_to_country_code_dict(coordinates):
+def __create_coordinate_to_country_code_dict(coord_list, all_countries_data):
     pos_country_dict = {}
-    for pos in coordinates:
+    for pos in coord_list:
         point = Point(pos[1], pos[0])  # lon, lat
         found_country = None
         for country_code, geom in all_countries_data.items():
@@ -78,54 +78,33 @@ def create_coordinate_to_country_code_dict(coordinates):
     return pos_country_dict
 
 
-def calc_flag_unicode(country_iso2):
+def __calc_flag_unicode(country_iso2):
     if country_iso2 is None:
         return None
     subchars = []
     for c in country_iso2:
         res = ord(c.capitalize()) - ord('A') + 127462
         subchars.append(hex(res).upper()[2:])
-    return subchars[0] + '-' + subchars[1] + '.png'
+    return subchars[0] + '-' + subchars[1]
 
 
-def load_flags_for_country_codes(country_code_list):
+def __load_flags_for_country_codes(country_code_list, flag_width, flag_height):
     flag_dict = {}
     for country_code in country_code_list:
-        if country_code not in flag_dict:
-            if country_code is not None:
-                flag_code = calc_flag_unicode(country_code)
-                if flag_code is not None:
-                    try:
-                        flag = Image.open(f'openmoji-618x618-color/{flag_code}')
-                        flag = autocrop_image(flag)
-                        flag = flag.resize((flag_width, flag_height), resample=Image.NEAREST)
-                        flag_dict[country_code] = flag
-                    except:
-                        pass
+        if country_code not in flag_dict and country_code is not None:
+            flag_code = __calc_flag_unicode(country_code)
+            if flag_code is not None:
+                try:
+                    flag = Image.open(f'openmoji-618x618-color/{flag_code}.png')
+                    flag = __autocrop_image(flag)
+                    flag = flag.resize((flag_width, flag_height), resample=Image.NEAREST)
+                    flag_dict[country_code] = flag
+                except Exception:
+                    pass
     return flag_dict
 
 
-def create_image_data_array():
-    image_array = []
-    for position in coord_list:
-        country_code = pos_to_country_dict[position]
-        if country_code in flag_dict:
-            country_flag = flag_dict[country_code]
-            image_data = {}
-            image_data["image"] = country_flag
-            image_data["offset_x"] = abs(longitude_start - position[1]) * flag_width * 1 / step_lon - flag_width / 2
-            image_data["offset_y"] = abs(latitude_start - position[0]) * flag_height * 1 / step_lat - flag_height / 2
-            image_array.append(image_data)
-    return image_array
-
-
-def create_base_image(map_width, map_height, background_color):
-    im = Image.new("RGBA", (map_width, map_height), background_color)
-    ImageDraw.Draw(im)
-    return im
-
-
-def draw_images_on_base(base, images, draw_offset_x, draw_offset_y):
+def __draw_images_on_base(base, images, draw_offset_x, draw_offset_y):
     for image in images:
         draw_x = int(draw_offset_x + image["offset_x"])
         draw_y = int(draw_offset_y + image["offset_y"])
@@ -133,40 +112,79 @@ def draw_images_on_base(base, images, draw_offset_x, draw_offset_y):
     return base
 
 
-if __name__ == '__main__':
-    all_countries_data = prepare_country_data('countries.geojson')
+def __save_map_safely(created_map):
+    print('saving map...')
+    name = 'cool_map'
+    counter = 1
+    while counter < 100:
+        full_name = f'{name}_{counter}.png'
+        try:
+            with open(f'{name}_{counter}.png'):
+                counter += 1
+        except IOError:
+            created_map.save(full_name)
+            return full_name
+    return ''
+
+
+def do_it(latitude_start=90.0, longitude_start=-180.0, latitude_div=180, longitude_div=360, step_lat=1.0,
+          background_color=(255, 255, 255, 255), save=False):
+    """
+    Creates a map made of flag-emojis on a given area with a given precision.
+    @param latitude_start: float
+    @param longitude_start: float
+    @param latitude_div: float
+    @param longitude_div: float
+    @param step_lat: float; the smaller it is the more precise but larger the map gets. A good range is  0.1 to 1.0
+    @param background_color: RGBA
+    @param save: bool; if the created map should be saved automatically.
+    Will never overwrite a file but instead tries to save under a new filename up to the number 99.
+    @author Rednaxelus
+    """
+    all_countries_data = __prepare_country_data('countries.geojson')
 
     draw_offset_x = 100
     draw_offset_y = 100
 
     flag_width = 32
-    flag_height = calc_flag_height(flag_width)
+    flag_height = __calc_flag_height(flag_width)
 
-    latitude_start = 73.0  # 90
-    longitude_start = -13.0  # -180
-    step_lat = 1  # 0.5
     step_lon = (flag_width / flag_height) * step_lat
 
-    latitude_div = 40  # 180
-    longitude_div = 55  # 360
+    coord_list = __create_coordinate_list(latitude_start, latitude_div, step_lat, longitude_start, longitude_div,
+                                          step_lon)
 
-    coord_list = create_coordinate_list(latitude_start, latitude_div, longitude_start, longitude_div)
-
-    pos_to_country_dict = create_coordinate_to_country_code_dict(coord_list)
+    pos_to_country_dict = __create_coordinate_to_country_code_dict(coord_list, all_countries_data)
 
     existing_country_codes = pos_to_country_dict.values()
 
-    flag_dict = load_flags_for_country_codes(existing_country_codes)
+    flag_dict = __load_flags_for_country_codes(existing_country_codes, flag_width, flag_height)
 
-    image_array = create_image_data_array()
+    image_array = []
+    for position in coord_list:
+        country_code = pos_to_country_dict[position]
+        if country_code in flag_dict:
+            country_flag = flag_dict[country_code]
+            image_data = {"image": country_flag,
+                          "offset_x": abs(longitude_start - position[1]) * flag_width * 1 / step_lon - flag_width / 2,
+                          "offset_y": abs(latitude_start - position[0]) * flag_height * 1 / step_lat - flag_height / 2}
+            image_array.append(image_data)
 
     map_width = int(flag_width * longitude_div / step_lon + draw_offset_x * 2)
     map_height = int(flag_height * latitude_div / step_lat + draw_offset_y * 2)
-    background_color = (255, 255, 255)
-    base_image = create_base_image(map_width, map_height, background_color)
+    base_image = Image.new("RGBA", (map_width, map_height), background_color)
 
-    created_map = draw_images_on_base(base_image, image_array, draw_offset_x, draw_offset_y)
+    created_map = __draw_images_on_base(base_image, image_array, draw_offset_x, draw_offset_y)
 
-    # created_map.save('cool_map.png')
+    if save:
+        map_file_name = __save_map_safely(created_map)
+        if map_file_name == '':
+            print("saving the map failed")
+        else:
+            print("saved the map successfully as: " + map_file_name)
 
     created_map.show()
+
+
+if __name__ == '__main__':
+    do_it()  # do_it(73.0, -13.0, 40, 55, 0.5, (255, 255, 255, 0), save=True)
