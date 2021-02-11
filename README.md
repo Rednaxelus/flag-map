@@ -1,3 +1,7 @@
+![](src/examples/simplified_worldmap.PNG)
+
+![](src/examples/precise_europe.PNG)
+
 # Flag-Map
 
 A Python script that creates a map made of (emoji-)flags for the countries in the desired region.
@@ -38,3 +42,4 @@ You can give these additional arguments:
 
 - Open for feedback. I am a Python amateur and don't know the coding conventions that well yet.
 - The reason I don't use an online API is because it was too slow and I didn't want to spam thousands of requests each run. https://github.com/thampiman/reverse-geocoder worked amazingly fast, but I couldn't filter out the water-locations that well.
+
