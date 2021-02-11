@@ -4,7 +4,7 @@ A Python script that creates a map made of (emoji-)flags for the countries in th
 
 ## Requirements
 
-- The images for the flags you want to use must be PNG and in a folder called "flags" in the same directory as the script.
+- The images for the flags you want to use must be in PNG-format, and inside a folder called "flags" in the same directory as the script. (Unless you give the script a different folder for the argument "folder_name")
 - The name for the flag-images have the format: `Unicode1 + "-" + Unicode2` Example: "1F1E6-1F1FA.png" for Australia. [Regional indicator symbol](https://en.wikipedia.org/wiki/Regional_indicator_symbol), [Enclosed Alphanumeric Supplement](https://en.wikipedia.org/wiki/Enclosed_Alphanumeric_Supplement)
 - [countries.geojson](https://github.com/datasets/geo-countries/tree/master/data) needs to be in the same directory as the script. This is the offline geometric dataset used to determine what country a given geolocation belongs to.
 
@@ -20,6 +20,7 @@ You can give these additional arguments:
     step_lat: float; the smaller it is the more precise but larger the map gets. A good range is  0.1 to 1.0
     background_color: RGBA
     save: bool; if the created map should be saved automatically. Will never overwrite a file but instead tries to save under a new filename up to the number 99.
+    folder_name: the name of the folder where you have your flag-images stored
     
 ## How it works
 
