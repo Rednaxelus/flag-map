@@ -18,8 +18,8 @@ def __prepare_country_data(json_file):
     return countries
 
 
-def __calc_flag_height(flag_width):
-    blueprint_flag = Image.open(f'openmoji-618x618-color/1F1E6-1F1E8.png')
+def __calc_flag_height(flag_width, folder_name):
+    blueprint_flag = Image.open(f'{folder_name}/1F1E6-1F1E8.png')
     blueprint_flag = __autocrop_image(blueprint_flag)
     scale_factor = flag_width / blueprint_flag.width
     flag_height = int(blueprint_flag.height * scale_factor)
@@ -88,14 +88,14 @@ def __calc_flag_unicode(country_iso2):
     return subchars[0] + '-' + subchars[1]
 
 
-def __load_flags_for_country_codes(country_code_list, flag_width, flag_height):
+def __load_flags_for_country_codes(country_code_list, flag_width, flag_height, folder_name):
     flag_dict = {}
     for country_code in country_code_list:
         if country_code not in flag_dict and country_code is not None:
             flag_code = __calc_flag_unicode(country_code)
             if flag_code is not None:
                 try:
-                    flag = Image.open(f'openmoji-618x618-color/{flag_code}.png')
+                    flag = Image.open(f'{folder_name}/{flag_code}.png')
                     flag = __autocrop_image(flag)
                     flag = flag.resize((flag_width, flag_height), resample=Image.NEAREST)
                     flag_dict[country_code] = flag
@@ -128,7 +128,7 @@ def __save_map_safely(created_map):
 
 
 def do_it(latitude_start=90.0, longitude_start=-180.0, latitude_div=180, longitude_div=360, step_lat=1.0,
-          background_color=(255, 255, 255, 255), save=False):
+          background_color=(255, 255, 255, 255), save=False, folder_name='flags'):
     """
     Creates a map made of flag-emojis on a given area with a given precision.
     @param latitude_start: float
@@ -139,6 +139,7 @@ def do_it(latitude_start=90.0, longitude_start=-180.0, latitude_div=180, longitu
     @param background_color: RGBA
     @param save: bool; if the created map should be saved automatically.
     Will never overwrite a file but instead tries to save under a new filename up to the number 99.
+    @param folder_name: the name of the folder where you have your flag-images stored
     @author Rednaxelus
     """
     all_countries_data = __prepare_country_data('countries.geojson')
@@ -147,7 +148,7 @@ def do_it(latitude_start=90.0, longitude_start=-180.0, latitude_div=180, longitu
     draw_offset_y = 100
 
     flag_width = 32
-    flag_height = __calc_flag_height(flag_width)
+    flag_height = __calc_flag_height(flag_width, folder_name)
 
     step_lon = (flag_width / flag_height) * step_lat
 
@@ -158,7 +159,7 @@ def do_it(latitude_start=90.0, longitude_start=-180.0, latitude_div=180, longitu
 
     existing_country_codes = pos_to_country_dict.values()
 
-    flag_dict = __load_flags_for_country_codes(existing_country_codes, flag_width, flag_height)
+    flag_dict = __load_flags_for_country_codes(existing_country_codes, flag_width, flag_height, folder_name)
 
     image_array = []
     for position in coord_list:
@@ -187,4 +188,4 @@ def do_it(latitude_start=90.0, longitude_start=-180.0, latitude_div=180, longitu
 
 
 if __name__ == '__main__':
-    do_it()  # do_it(73.0, -13.0, 40, 55, 0.5, (255, 255, 255, 0), save=True)
+    do_it()  # do_it(73.0, -13.0, 40, 55, 0.5, (255, 255, 255, 0), save=True, 'flags')
